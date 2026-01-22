@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Birdsong Method | Global Vocal Performance</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Manrope:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Custom Config -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            dark: '#060b13',      // Deep space
+                            navy: '#16222e',      // Shield blue
+                            silver: '#e5e7eb',    // Chrome
+                            gold: '#b69146',      // Wing gold
+                            sunset: '#f97316',    // Vibrant sunset
+                            cream: '#f8ead6',     // Button cream from image
+                            accent: '#1e293b',    // Lighter navy
+                            muted: '#94a3b8'      // Slate 400
+                        }
+                    },
+                    fontFamily: {
+                        serif: ['"Playfair Display"', 'serif'],
+                        sans: ['"Manrope"', 'sans-serif'],
+                        mono: ['"Space Grotesk"', 'monospace'],
+                        cursive: ['"Dancing Script"', 'cursive'],
+                    },
+                    animation: {
+                        'slow-zoom': 'slow-zoom 30s linear infinite alternate',
+                        'float': 'float 6s ease-in-out infinite',
+                        'dash': 'dash 5s linear forwards',
+                        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    },
+                    keyframes: {
+                        'slow-zoom': {
+                            '0%': { transform: 'scale(1)' },
+                            '100%': { transform: 'scale(1.15)' },
+                        },
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-10px)' },
+                        },
+                        dash: {
+                            'to': { strokeDashoffset: '0' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #060b13; }
+        ::-webkit-scrollbar-thumb { background: #16222e; border-radius: 10px; }
+        
+        .gold-gradient {
+            background: linear-gradient(135deg, #b69146 0%, #fef3c7 50%, #b69146 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero-sunset-bg {
+            background: linear-gradient(to bottom, 
+                rgba(6, 11, 19, 0.7) 0%, 
+                rgba(6, 11, 19, 0.2) 40%, 
+                rgba(182, 145, 70, 0.3) 70%, 
+                rgba(249, 115, 22, 0.5) 100%
+            );
+        }
+
+        .cursive-logo {
+            font-family: 'Dancing Script', cursive;
+        }
+
+        /* Professional Interface aesthetics */
+        .hud-scanline {
+            background: linear-gradient(to bottom, transparent 50%, rgba(182, 145, 70, 0.05) 50%);
+            background-size: 100% 4px;
+        }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.2.3",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+    "@google/genai": "https://esm.sh/@google/genai@^1.35.0",
+    "vite": "https://esm.sh/vite@^7.3.1",
+    "path": "https://esm.sh/path@^0.12.7",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "@stripe/stripe-js": "https://esm.sh/@stripe/stripe-js@^3.0.0"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body class="bg-brand-dark text-brand-silver font-sans antialiased overflow-x-hidden selection:bg-brand-gold selection:text-brand-dark">
+    <div id="root"></div>
+<script type="module" src="/index.tsx"></script>
+</body>
+</html>
