@@ -1,7 +1,0 @@
-{
-  "name": "The Birdsong Method",
-  "description": "A premium vocal training experience connecting travel and voice performance.",
-  "requestFramePermissions": [
-    "microphone"
-  ]
-}
