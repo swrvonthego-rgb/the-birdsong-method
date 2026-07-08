@@ -4,6 +4,12 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Vocal Analyzer · The Birdsong Method</title>
+<meta name="description" content="A 60-second AI vocal analysis. Five real scores — pitch, breath, range, resonance, dynamics — plus the Birdsong Method program matched to your voice."/>
+<meta name="theme-color" content="#0c0a08"/>
+<meta property="og:title" content="Vocal Analyzer · The Birdsong Method"/>
+<meta property="og:description" content="Find out what your voice can do in 60 seconds. Five real scores and your recommended training path."/>
+<meta property="og:type" content="website"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='0.9em' font-size='90'%3E%F0%9F%8E%99%EF%B8%8F%3C/text%3E%3C/svg%3E"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,400;1,700&family=DM+Sans:wght@300;400;500&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet"/>
@@ -410,15 +416,27 @@ const SCHEDULE=[
 const TOTAL=60, CIRCUMFERENCE=345;
 
 // ─── STATE ────────────────────────────────────────────────────────────
-let isRecording=false, audioCtx=null, analyser=null;
+let isRecording=false, audioCtx=null, analyser=null, mediaStream=null, sampleRateHz=44100;
 let liveAnimFrame=null, countdownInterval=null, elapsed=0;
 // Per-second snapshots
 let timeSnapshots=[]; // {sec, hz, rms, zcr, spectralCentroid}
 
-// ─── PAYMENT GATE ─────────────────────────────────────────────────────
+// ─── SAVED RESULT (URL param or localStorage) ─────────────────────────
+const STORAGE_KEY='birdsong_last_result';
+// URL-safe base64 so result links survive query-string encoding
+function encodeResult(o){ return btoa(JSON.stringify(o)).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
+function decodeResult(s){
+  try{ return JSON.parse(atob(s.replace(/ /g,'+').replace(/-/g,'+').replace(/_/g,'/'))); }
+  catch(e){ return null; }
+}
 const params=new URLSearchParams(window.location.search);
 let savedResult=null;
-try{ const enc=params.get('result'); if(enc) savedResult=JSON.parse(atob(enc)); }catch(e){}
+const enc=params.get('result');
+if(enc) savedResult=decodeResult(enc);
+if(!savedResult){
+  try{ const stored=localStorage.getItem(STORAGE_KEY); if(stored) savedResult=JSON.parse(stored); }catch(e){}
+}
+if(savedResult&&(typeof savedResult.avg!=='number'||!savedResult.tier)) savedResult=null;
 if(params.get('paid')==='true'||params.get('challenge')==='true') unlockAnalyzer();
 
 function unlockAnalyzer(){
@@ -431,7 +449,11 @@ function unlockAnalyzer(){
   }
   document.getElementById('analyzerSection').scrollIntoView({behavior:'smooth'});
 }
-function clearPrev(){ savedResult=null; document.getElementById('prevBanner').classList.remove('show'); }
+function clearPrev(){
+  savedResult=null;
+  try{ localStorage.removeItem(STORAGE_KEY); }catch(e){}
+  document.getElementById('prevBanner').classList.remove('show');
+}
 
 // ─── RECORDING ────────────────────────────────────────────────────────
 function toggleRecord(){ isRecording ? stopRecording() : startRecording(); }
@@ -439,12 +461,14 @@ function toggleRecord(){ isRecording ? stopRecording() : startRecording(); }
 async function startRecording(){
   if(isRecording) return;
   try{
-    const stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false},video:false});
-    audioCtx=new(window.AudioContext||window.webkitAudioContext)({sampleRate:44100});
+    mediaStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false},video:false});
+    audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+    if(audioCtx.state==='suspended') await audioCtx.resume(); // iOS Safari starts suspended
+    sampleRateHz=audioCtx.sampleRate;
     analyser=audioCtx.createAnalyser();
     analyser.fftSize=4096;          // higher resolution
     analyser.smoothingTimeConstant=0.5;
-    audioCtx.createMediaStreamSource(stream).connect(analyser);
+    audioCtx.createMediaStreamSource(mediaStream).connect(analyser);
 
     isRecording=true; elapsed=0; timeSnapshots=[];
 
@@ -458,13 +482,14 @@ async function startRecording(){
 
     drawLiveWave();
     updateTicker(0);
-    runCountdown(stream);
+    runCountdown();
   }catch(e){
+    releaseAudio();
     alert('Microphone access is required. Please allow mic access in your browser and try again.');
   }
 }
 
-function runCountdown(stream){
+function runCountdown(){
   const circle=document.getElementById('countdownCircle');
   const numEl=document.getElementById('countdownNumber');
   countdownInterval=setInterval(()=>{
@@ -475,7 +500,7 @@ function runCountdown(stream){
     if(remaining<=10){ circle.classList.add('urgent'); numEl.classList.add('urgent'); }
     updateTicker(elapsed);
     captureSnapshot();
-    if(elapsed>=TOTAL){ clearInterval(countdownInterval); stopRecording(stream); }
+    if(elapsed>=TOTAL){ clearInterval(countdownInterval); stopRecording(); }
   },1000);
 }
 
@@ -507,13 +532,13 @@ function captureSnapshot(){
   const zcr=zc/bufLen;
 
   // 3. Pitch via HPS (Harmonic Product Spectrum) — much better than peak bin
-  const hz=estimatePitchHPS(freqData, audioCtx.sampleRate);
+  const hz=estimatePitchHPS(freqData, sampleRateHz);
 
   // 4. Spectral Centroid (brightness / resonance quality)
   let wSum=0, totalPow=0;
   for(let i=0;i<freqData.length;i++){
     const pow=Math.pow(10,(freqData[i]/20));
-    const freq=(i*audioCtx.sampleRate)/(analyser.fftSize);
+    const freq=(i*sampleRateHz)/(analyser.fftSize);
     wSum+=freq*pow; totalPow+=pow;
   }
   const spectralCentroid=totalPow>0?wSum/totalPow:0;
@@ -521,7 +546,7 @@ function captureSnapshot(){
   // 5. Spectral Flux (dynamic variation — detects movement in voice)
   // stored per snapshot and computed in aggregate later
 
-  timeSnapshots.push({sec:elapsed, hz, rms, zcr, spectralCentroid, freqData:Array.from(freqData)});
+  timeSnapshots.push({sec:elapsed, hz, rms, zcr, spectralCentroid});
 
   // Update live pitch display
   if(hz>80&&hz<1100){
@@ -551,20 +576,34 @@ function estimatePitchHPS(freqData, sampleRate){
   return (maxI*sampleRate)/(freqData.length*2);
 }
 
-// Hz → musical note name
+// Hz → musical note name (MIDI: A440 = note 69 = A4)
 function hzToNote(hz){
   const notes=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
-  const semitones=Math.round(12*Math.log2(hz/440))+57;
+  const semitones=Math.round(12*Math.log2(hz/440))+69;
   if(semitones<0||semitones>127) return '—';
   return notes[semitones%12]+(Math.floor(semitones/12)-1);
 }
 
-function stopRecording(stream){
+// Release the microphone and audio pipeline completely
+function releaseAudio(){
+  if(mediaStream){ mediaStream.getTracks().forEach(t=>t.stop()); mediaStream=null; }
+  if(audioCtx){ try{ audioCtx.close(); }catch(e){} audioCtx=null; }
+  analyser=null;
+}
+
+const MIN_SECONDS=8; // below this there isn't enough signal to score honestly
+
+function stopRecording(){
   if(!isRecording) return;
   isRecording=false;
   clearInterval(countdownInterval);
   cancelAnimationFrame(liveAnimFrame);
-  if(stream) stream.getTracks().forEach(t=>t.stop());
+  releaseAudio();
+  if(elapsed<MIN_SECONDS){
+    retake();
+    alert(`That was only ${elapsed} second${elapsed===1?'':'s'} — we need at least ${MIN_SECONDS} seconds of audio to score your voice. Tap Start and give it another go.`);
+    return;
+  }
   // Hide mic, show processing
   document.getElementById('micArea').style.display='none';
   document.getElementById('recordBtn').disabled=true;
@@ -755,6 +794,7 @@ function showResults(){
   const avg=(s.pitch+s.breath+s.range+s.resonance+s.dynamics)/5;
   currentAvg=Math.round(avg*10)/10;
   const tier=getTier(avg); enrollLink=tier.link; currentTierName=tier.name;
+  try{ localStorage.setItem(STORAGE_KEY,JSON.stringify(buildResultData())); }catch(e){}
   const dateStr=new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'});
   document.getElementById('resultsDate').textContent=dateStr;
 
@@ -829,16 +869,14 @@ function buildResultData(){
   return{avg:currentAvg,tier:currentTierName,date:new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}),scores:currentScores};
 }
 function copyResultLink(){
-  const enc=btoa(JSON.stringify(buildResultData()));
-  const url=`${location.origin}${location.pathname}?challenge=true&result=${enc}`;
+  const url=`${location.origin}${location.pathname}?challenge=true&result=${encodeResult(buildResultData())}`;
   navigator.clipboard.writeText(url).then(()=>{
     document.getElementById('copyConfirm').style.display='block';
     setTimeout(()=>document.getElementById('copyConfirm').style.display='none',4000);
   }).catch(()=>prompt('Copy this link:',url));
 }
 function challengeAgain(){
-  const enc=btoa(JSON.stringify(buildResultData()));
-  window.location.href=`${location.origin}${location.pathname}?challenge=true&result=${enc}`;
+  window.location.href=`${location.origin}${location.pathname}?challenge=true&result=${encodeResult(buildResultData())}`;
 }
 function saveAsImage(){
   const card=document.querySelector('.results-card');
@@ -856,6 +894,7 @@ document.head.appendChild(h2c);
 function goEnroll(){ window.location.href=enrollLink; }
 function retake(){
   timeSnapshots=[]; elapsed=0;
+  document.getElementById('vizWrap').classList.remove('active');
   document.getElementById('countdownCircle').style.strokeDashoffset='0';
   document.getElementById('countdownCircle').classList.remove('urgent');
   document.getElementById('countdownNumber').textContent='60';

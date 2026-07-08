@@ -1,20 +1,35 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# The Birdsong Method
 
-# Run and deploy your AI Studio app
+Marketing site + AI vocal analyzer for **The Birdsong Method**, vocal training by SWRV Birdsong.
 
-This contains everything you need to run your app locally.
+## Pages
 
-View your app in AI Studio: https://ai.studio/apps/drive/1NH55jpQ_31K80po9EMVMU8qHZ2t2dBwL
+- `index.html` — landing page: about, curriculum, programs/pricing, testimonials.
+- `vocal-analyzer.html` — 60-second in-browser vocal analysis. Uses the Web Audio API
+  (microphone → AnalyserNode) to score pitch stability, breath support, vocal range,
+  resonance, and dynamics, then recommends a program tier. All analysis runs client-side;
+  no audio ever leaves the browser. The latest result is kept in `localStorage` so
+  returning visitors can challenge their score.
 
-## Run Locally
+## Current status
 
-**Prerequisites:**  Node.js
+- **Payments:** the analyzer's $1 paywall is in **test mode** — the "Try It Free · Test Mode"
+  button bypasses payment. Replace it with a Stripe (or similar) payment link that redirects
+  back to `vocal-analyzer.html?paid=true`.
+- **Accounts:** there is no signup/login. Enrollment is via `mailto:` links to
+  swrvbirdsong@gmail.com.
 
+## Development
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+Plain static HTML — no build step, no dependencies. Preview locally:
+
+```sh
+python3 -m http.server 8080
+```
+
+Note: the analyzer needs a secure context (`localhost` or HTTPS) for microphone access.
+
+## Deploy
+
+Static deploy (Cloudflare Pages style). `_headers` sets security headers and caching.
+No build command required.
